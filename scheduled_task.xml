@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Monthly harvest of agricultural economics research papers (OpenAlex, AgEcon Search, Grey Literature, PDFs). Runs on the 1st Tuesday of each month at 9:00 AM EST.</Description>
+    <Author>ben.lefort</Author>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2026-05-05T09:00:00-05:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByMonthDayOfWeek>
+        <Weeks><Week>1</Week></Weeks>
+        <DaysOfWeek><Tuesday /></DaysOfWeek>
+        <Months>
+          <January /><February /><March /><April />
+          <May /><June /><July /><August />
+          <September /><October /><November /><December />
+        </Months>
+      </ScheduleByMonthDayOfWeek>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <ExecutionTimeLimit>PT4H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>C:\Users\ben.lefort\AppData\Local\Programs\Python\Python311\python.exe</Command>
+      <Arguments>"C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\scheduled_harvest.py"</Arguments>
+      <WorkingDirectory>C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

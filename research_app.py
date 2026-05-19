@@ -15,6 +15,52 @@ from db import get_connection, get_stats, init_db
 from config import BASE_DIR
 
 
+# ── Caching Layer ────────────────────────────────────────────────────────────
+
+@st.cache_resource
+def get_embedding_model():
+    from sentence_transformers import SentenceTransformer
+    from embeddings import MODEL_NAME
+    return SentenceTransformer(MODEL_NAME)
+
+
+@st.cache_resource
+def get_cached_chroma_collection():
+    from embeddings import get_chroma_collection
+    _, collection = get_chroma_collection()
+    return collection
+
+
+@st.cache_data(ttl=300)
+def get_cached_stats():
+    conn = get_connection()
+    stats = get_stats(conn)
+    conn.close()
+    return stats
+
+
+@st.cache_data(ttl=300)
+def get_cached_full_text_count():
+    try:
+        conn = get_connection()
+        count = conn.execute(
+            "SELECT COUNT(*) FROM papers WHERE full_text IS NOT NULL AND full_text != ''"
+        ).fetchone()[0]
+        conn.close()
+        return count
+    except Exception:
+        return 0
+
+
+@st.cache_data(ttl=300)
+def get_cached_embedded_count():
+    try:
+        collection = get_cached_chroma_collection()
+        return collection.count()
+    except Exception:
+        return 0
+
+
 # ── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Ag Econ Research Assistant",
@@ -175,26 +221,20 @@ def render_header():
 
 
 def render_stats():
-    conn = get_connection()
-    stats = get_stats(conn)
-    conn.close()
+    stats = get_cached_stats()
+    embedded_count = get_cached_embedded_count()
+    ft_count = get_cached_full_text_count()
 
-    # Check embedding count
-    try:
-        from embeddings import get_chroma_collection
-        _, collection = get_chroma_collection()
-        embedded_count = collection.count()
-    except Exception:
-        embedded_count = 0
-
-    cols = st.columns(5)
+    cols = st.columns(6)
     stat_data = [
         (f"{stats['total_papers']:,}", "Total Papers"),
         (f"{stats.get('by_tier', {}).get('Canadian', 0):,}", "Canadian (Tier 1)"),
         (f"{stats['open_access']:,}", "Open Access"),
         (f"{stats['unique_authors']:,}", "Authors"),
         (f"{embedded_count:,}", "Embedded"),
+        (f"{ft_count:,}", "Full Text"),
     ]
+
     for col, (number, label) in zip(cols, stat_data):
         col.markdown(f"""
         <div class="stat-card">
@@ -223,6 +263,10 @@ def render_result_card(result, rank):
     if result.get("doi"):
         doi_link = f' · <a href="https://doi.org/{result["doi"]}" target="_blank">DOI ↗</a>'
 
+    ft_badge = ""
+    if result.get("has_full_text"):
+        ft_badge = ' · <span style="background:#e0f7fa;color:#00695c;padding:1px 6px;border-radius:3px;font-size:0.72rem;font-weight:600;">📄 Full Text</span>'
+
     st.markdown(f"""
     <div class="result-card">
         <div class="result-title">{rank}. {result.get('title', 'Untitled')}</div>
@@ -230,7 +274,7 @@ def render_result_card(result, rank):
             <span class="tier-badge {tier_css}">{tier_name}</span>
             &nbsp; {year} · {result.get('source', 'Unknown')[:40]}
             · {result.get('citations', 0):,} citations
-            · Match: {sim_pct:.0f}%{doi_link}
+            · Match: {sim_pct:.0f}%{doi_link}{ft_badge}
         </div>
         <div class="result-abstract">{abstract}</div>
         <div class="similarity-bar" style="width: {max(sim_pct, 5)}%"></div>
@@ -238,12 +282,16 @@ def render_result_card(result, rank):
     """, unsafe_allow_html=True)
 
 
+@st.cache_data(max_entries=50, ttl=900)
 def do_semantic_search(query, n_results, tier_filter, year_range):
     """Run semantic search with filters."""
     from embeddings import search
 
-    tier = tier_filter if tier_filter != "All" else None
     tier_val = {"All": None, "Canadian (1)": 1, "US (2)": 2, "OECD (3)": 3, "Global (4)": 4}.get(tier_filter)
+
+    # Retrieve cached model and collection
+    model = get_embedding_model()
+    collection = get_cached_chroma_collection()
 
     results = search(
         query,
@@ -251,18 +299,24 @@ def do_semantic_search(query, n_results, tier_filter, year_range):
         tier_filter=tier_val,
         year_min=year_range[0],
         year_max=year_range[1],
+        model=model,
+        collection=collection,
     )
 
-    # Enrich with full abstracts from DB
+    # Enrich with abstracts and snippet of full text from DB
     if results:
         conn = get_connection()
         for r in results:
             paper = conn.execute(
-                "SELECT abstract, title FROM papers WHERE id = ?", (r["paper_id"],)
+                "SELECT abstract, title, SUBSTR(full_text, 1, 1000) as full_text_excerpt, "
+                "CASE WHEN full_text IS NOT NULL AND full_text != '' THEN 1 ELSE 0 END as has_full_text "
+                "FROM papers WHERE id = ?", (r["paper_id"],)
             ).fetchone()
             if paper:
                 r["full_abstract"] = paper["abstract"] or ""
                 r["abstract_snippet"] = (paper["abstract"] or "")[:300]
+                r["full_text_excerpt"] = paper["full_text_excerpt"] or ""
+                r["has_full_text"] = bool(paper["has_full_text"])
         conn.close()
 
     return results
@@ -275,15 +329,20 @@ def generate_literature_review(query, results, api_key):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel("gemini-2.5-flash")
 
-    # Build context from top results
+    # Build context from top results — use full text excerpt when available
     paper_summaries = []
     for i, r in enumerate(results[:25], 1):
-        abstract = r.get("full_abstract", r.get("abstract_snippet", ""))[:500]
+        if r.get("full_text_excerpt"):
+            content = r["full_text_excerpt"]
+            source_label = "Full Text Excerpt"
+        else:
+            content = r.get("full_abstract", r.get("abstract_snippet", ""))[:500]
+            source_label = "Abstract"
         entry = f"""
 Paper {i}: "{r.get('title', 'Untitled')}" ({r.get('year', 'N/A')})
 Journal: {r.get('source', 'Unknown')}
 Citations: {r.get('citations', 0)}
-Abstract: {abstract}
+{source_label}: {content}
 """
         paper_summaries.append(entry)
 
@@ -354,8 +413,16 @@ render_header()
 # Handle embedding rebuild
 if st.session_state.get("rebuild_embeddings"):
     with st.spinner("Building embeddings (this may take a few minutes on first run)..."):
+        # Clear caching to force reload after database update
+        st.cache_data.clear()
+        st.cache_resource.clear()
+
+        # Load fresh model/collection references
+        model = get_embedding_model()
+        collection = get_cached_chroma_collection()
+
         from embeddings import build_embeddings
-        count = build_embeddings()
+        count = build_embeddings(model=model, collection=collection)
         st.success(f"Embedded {count:,} paper abstracts!")
     st.session_state["rebuild_embeddings"] = False
 
@@ -396,8 +463,7 @@ if "query" in st.session_state and not query:
 if query and (search_btn or query):
     # Check if embeddings exist
     try:
-        from embeddings import get_chroma_collection
-        _, collection = get_chroma_collection()
+        collection = get_cached_chroma_collection()
         count = collection.count()
         if count == 0:
             st.warning("⚠️ No embeddings found. Click **Rebuild Embeddings** in the sidebar first.")

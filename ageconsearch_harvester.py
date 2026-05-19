@@ -244,7 +244,7 @@ class AgEconSearchHarvester:
 
         return True
 
-    def harvest(self, max_records=None):
+    def harvest(self, max_records=None, from_date=None):
         """
         Harvest all records from AgEcon Search via OAI-PMH.
         Uses resumption tokens for paginated retrieval.
@@ -271,8 +271,11 @@ class AgEconSearchHarvester:
                         "ListRecords", resumptionToken=resumption_token
                     )
                 else:
+                    kwargs = {"metadataPrefix": "marcxml"}
+                    if from_date:
+                        kwargs["from"] = from_date
                     tree = self._oai_request(
-                        "ListRecords", metadataPrefix="marcxml"
+                        "ListRecords", **kwargs
                     )
 
                 if tree is None:
@@ -352,10 +355,10 @@ class AgEconSearchHarvester:
         return added, skipped
 
 
-def harvest_ageconsearch(max_records=None):
+def harvest_ageconsearch(max_records=None, from_date=None):
     """Main entry point for AgEcon Search harvesting."""
     harvester = AgEconSearchHarvester()
-    return harvester.harvest(max_records=max_records)
+    return harvester.harvest(max_records=max_records, from_date=from_date)
 
 
 if __name__ == "__main__":

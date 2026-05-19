@@ -29,6 +29,8 @@ def init_db():
             doi             TEXT,
             title           TEXT NOT NULL,
             abstract        TEXT,
+            full_text       TEXT,          -- Extracted full text from PDF
+            full_text_extracted INTEGER DEFAULT 0,  -- 0=not extracted, 1=extracted, -1=failed
             year            INTEGER,
             citation_count  INTEGER DEFAULT 0,
             paper_type      TEXT,          -- journal-article, working-paper, etc.
@@ -100,6 +102,32 @@ def init_db():
     conn.close()
     print(f"[DB] Database initialized at {DB_PATH}")
 
+    # Run migration for existing databases
+    migrate_db()
+
+
+def migrate_db():
+    """Add new columns to existing databases without data loss."""
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Get existing columns
+    cur.execute("PRAGMA table_info(papers)")
+    existing_cols = {row["name"] for row in cur.fetchall()}
+
+    migrations = [
+        ("full_text", "ALTER TABLE papers ADD COLUMN full_text TEXT"),
+        ("full_text_extracted", "ALTER TABLE papers ADD COLUMN full_text_extracted INTEGER DEFAULT 0"),
+    ]
+
+    for col_name, sql in migrations:
+        if col_name not in existing_cols:
+            cur.execute(sql)
+            print(f"[MIGRATE] Added column: {col_name}")
+
+    conn.commit()
+    conn.close()
+
 
 # ── Paper CRUD ──────────────────────────────────────────────────────────────
 
@@ -118,6 +146,30 @@ def paper_exists(conn, openalex_id=None, doi=None):
         if row:
             return row["id"]
     return None
+
+
+def paper_exists_by_title(conn, title):
+    """Check if a paper already exists by exact title match.
+    Used for grey literature that lacks DOIs/OpenAlex IDs.
+    """
+    if not title:
+        return None
+    row = conn.execute(
+        "SELECT id FROM papers WHERE title = ?", (title.strip(),)
+    ).fetchone()
+    return row["id"] if row else None
+
+
+def paper_exists_by_url(conn, pdf_url):
+    """Check if a paper already exists by its PDF URL.
+    Used for grey literature deduplication.
+    """
+    if not pdf_url:
+        return None
+    row = conn.execute(
+        "SELECT id FROM papers WHERE pdf_url = ?", (pdf_url.strip(),)
+    ).fetchone()
+    return row["id"] if row else None
 
 
 def insert_paper(conn, paper_data):
@@ -166,6 +218,18 @@ def update_paper_pdf(conn, paper_id, pdf_local_path, pdf_size_bytes):
            SET pdf_local_path = ?, pdf_size_bytes = ?, updated_at = datetime('now')
            WHERE id = ?""",
         (pdf_local_path, pdf_size_bytes, paper_id),
+    )
+
+
+def update_paper_full_text(conn, paper_id, full_text, status=1):
+    """Store extracted full text for a paper.
+    status: 1 = success, -1 = extraction failed.
+    """
+    conn.execute(
+        """UPDATE papers
+           SET full_text = ?, full_text_extracted = ?, updated_at = datetime('now')
+           WHERE id = ?""",
+        (full_text, status, paper_id),
     )
 
 

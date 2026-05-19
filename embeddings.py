@@ -25,7 +25,7 @@ def get_chroma_collection():
     return client, collection
 
 
-def build_embeddings(limit=None, force_rebuild=False):
+def build_embeddings(limit=None, force_rebuild=False, model=None, collection=None):
     """
     Embed all paper abstracts that have text content.
     Skips papers already embedded unless force_rebuild=True.
@@ -37,12 +37,16 @@ def build_embeddings(limit=None, force_rebuild=False):
     print("=" * 70)
 
     # Load model
-    print(f"\n[MODEL] Loading {MODEL_NAME}...")
-    model = SentenceTransformer(MODEL_NAME)
-    print(f"[MODEL] Ready ({MODEL_NAME})")
+    if model is None:
+        print(f"\n[MODEL] Loading {MODEL_NAME}...")
+        model = SentenceTransformer(MODEL_NAME)
+        print(f"[MODEL] Ready ({MODEL_NAME})")
+    else:
+        print(f"\n[MODEL] Using pre-loaded {MODEL_NAME}")
 
     # Connect to ChromaDB
-    _, collection = get_chroma_collection()
+    if collection is None:
+        _, collection = get_chroma_collection()
     existing_ids = set(collection.get()["ids"]) if not force_rebuild else set()
     print(f"[CHROMA] {len(existing_ids)} papers already embedded")
 
@@ -55,13 +59,14 @@ def build_embeddings(limit=None, force_rebuild=False):
         existing_ids = set()
         print("[CHROMA] Collection rebuilt from scratch")
 
-    # Fetch papers with abstracts
+    # Fetch papers with abstracts or full text
     conn = get_connection()
     query = """
-        SELECT id, openalex_id, title, abstract, year, source_name,
+        SELECT id, openalex_id, title, abstract, full_text, year, source_name,
                priority_tier, citation_count, doi, is_open_access
         FROM papers
-        WHERE abstract IS NOT NULL AND abstract != ''
+        WHERE (abstract IS NOT NULL AND abstract != '')
+           OR (full_text IS NOT NULL AND full_text != '')
     """
     if limit:
         query += f" ORDER BY priority_tier ASC, citation_count DESC LIMIT {int(limit)}"
@@ -77,7 +82,9 @@ def build_embeddings(limit=None, force_rebuild=False):
     ]
 
     total = len(papers_to_embed)
-    print(f"[QUEUE] {total} papers to embed ({len(papers) - total} already done)\n")
+    full_text_count = sum(1 for p in papers_to_embed if p["full_text"])
+    print(f"[QUEUE] {total} papers to embed ({len(papers) - total} already done)")
+    print(f"[QUEUE] {full_text_count} with full text, {total - full_text_count} abstract-only\n")
 
     if total == 0:
         print("[DONE] All papers already embedded!")
@@ -90,13 +97,19 @@ def build_embeddings(limit=None, force_rebuild=False):
     for batch_start in range(0, total, BATCH_SIZE):
         batch = papers_to_embed[batch_start:batch_start + BATCH_SIZE]
 
-        # Prepare texts — combine title + abstract for richer embeddings
+        # Prepare texts — use full text when available, fall back to abstract
+        # MiniLM has a 256 token window, so we front-load the most relevant content
         texts = []
         ids = []
         metadatas = []
 
         for paper in batch:
-            text = f"{paper['title']}. {paper['abstract']}"
+            if paper["full_text"]:
+                # Use title + first 2000 chars of full text for richer embeddings
+                body = paper["full_text"][:2000]
+            else:
+                body = paper["abstract"] or ""
+            text = f"{paper['title']}. {body}"
             texts.append(text)
             ids.append(str(paper["id"]))
             metadatas.append({
@@ -107,6 +120,7 @@ def build_embeddings(limit=None, force_rebuild=False):
                 "citations": paper["citation_count"] or 0,
                 "doi": paper["doi"] or "",
                 "is_open_access": paper["is_open_access"] or 0,
+                "has_full_text": 1 if paper["full_text"] else 0,
             })
 
         # Embed batch
@@ -139,15 +153,16 @@ def build_embeddings(limit=None, force_rebuild=False):
     return embedded
 
 
-def search(query_text, n_results=20, tier_filter=None, year_min=None, year_max=None):
+def search(query_text, n_results=20, tier_filter=None, year_min=None, year_max=None, model=None, collection=None):
     """
     Semantic search over paper abstracts.
     Returns list of results with scores.
     """
-    from sentence_transformers import SentenceTransformer
-
-    model = SentenceTransformer(MODEL_NAME)
-    _, collection = get_chroma_collection()
+    if model is None:
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer(MODEL_NAME)
+    if collection is None:
+        _, collection = get_chroma_collection()
 
     # Build where filter
     where_clauses = []

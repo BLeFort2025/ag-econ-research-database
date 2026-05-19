@@ -1,0 +1,74 @@
+{
+  "scenario": "FCC $2.6B Import Substitution",
+  "source": "FCC (2025), USDA FAS GATS (2023), StatCan Supply & Use Tables",
+  "methodology": "Krasnoff et al. (2023) margining approach",
+  "total_gross_cad_millions": 2600.0,
+  "total_net_producer_value_cad_millions": 1706.8,
+  "margin_reduction_pct": 34.4,
+  "sectors": [
+    {
+      "naics_codes": [
+        "3118"
+      ],
+      "industry_name": "Bakeries & tortilla mfg",
+      "gross_import_value_cad_m": 660.3,
+      "producer_value_share": 0.68,
+      "net_new_producer_value_cad_m": 449.0
+    },
+    {
+      "naics_codes": [
+        "3119"
+      ],
+      "industry_name": "Other food manufacturing",
+      "gross_import_value_cad_m": 512.6,
+      "producer_value_share": 0.62,
+      "net_new_producer_value_cad_m": 317.8
+    },
+    {
+      "naics_codes": [
+        "3116"
+      ],
+      "industry_name": "Meat product manufacturing",
+      "gross_import_value_cad_m": 442.8,
+      "producer_value_share": 0.72,
+      "net_new_producer_value_cad_m": 318.8
+    },
+    {
+      "naics_codes": [
+        "3121"
+      ],
+      "industry_name": "Beverage manufacturing",
+      "gross_import_value_cad_m": 327.4,
+      "producer_value_share": 0.65,
+      "net_new_producer_value_cad_m": 212.8
+    },
+    {
+      "naics_codes": [
+        "3115"
+      ],
+      "industry_name": "Dairy product manufacturing",
+      "gross_import_value_cad_m": 273.3,
+      "producer_value_share": 0.7,
+      "net_new_producer_value_cad_m": 191.3
+    },
+    {
+      "naics_codes": [
+        "1114",
+        "3114"
+      ],
+      "industry_name": "Fruit & veg preserving / Greenhouse",
+      "gross_import_value_cad_m": 260.4,
+      "producer_value_share": 0.55,
+      "net_new_producer_value_cad_m": 143.2
+    },
+    {
+      "naics_codes": [
+        "3113"
+      ],
+      "industry_name": "Sugar & confectionery",
+      "gross_import_value_cad_m": 123.2,
+      "producer_value_share": 0.6,
+      "net_new_producer_value_cad_m": 73.9
+    }
+  ]
+}

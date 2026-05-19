@@ -1,0 +1,103 @@
+==============================================================================
+  STATCAN LOCAL FOOD MULTIPLIER ENGINE
+  Analysis-by-Parts with Swenson Net-Impact Correction
+  Ontario, Canada ù March 2026
+==============================================================================
+
+  Initial shock: $1.00M
+  Budget validation: 1.00 (OK)
+
+------------------------------------------------------------------------------
+  PHASE 2: MARGIN DEFLATION & RPC APPLICATION
+------------------------------------------------------------------------------
+
+       budget_item              component  purchaser_$  rpc  local_$  leaked_$
+       hired_labor      VALUE_ADDED_LABOR     300000.0 1.00 300000.0       0.0
+ proprietor_income VALUE_ADDED_PROPRIETOR     200000.0 1.00 200000.0       0.0
+         packaging                  BS4A0      16000.0 0.85  13600.0    2400.0
+         packaging                 BS4100       8000.0 0.50   4000.0    4000.0
+         packaging                  BS484       4000.0 0.80   3200.0     800.0
+         packaging                 BS3222      52000.0 0.25  13000.0   39000.0
+       fuel_energy                  BS4A0       7500.0 0.85   6375.0    1125.0
+       fuel_energy                 BS4100       2500.0 0.50   1250.0    1250.0
+       fuel_energy                  BS484       2500.0 0.80   2000.0     500.0
+       fuel_energy                 BS3241      37500.0 0.25   9375.0   28125.0
+    ag_inputs_seed                  BS4A0      22500.0 0.85  19125.0    3375.0
+    ag_inputs_seed                 BS4100      15000.0 0.50   7500.0    7500.0
+    ag_inputs_seed                  BS484       7500.0 0.80   6000.0    1500.0
+    ag_inputs_seed                  BS111     105000.0 0.60  63000.0   42000.0
+marketing_services                 BS5400     100000.0 0.90  90000.0   10000.0
+        taxes_land             GOVT_TAXES     120000.0 1.00 120000.0       0.0
+
+  Local retained:   $858.4K
+  Import leakage:   $141.6K
+  Retention rate:   85.8%
+
+------------------------------------------------------------------------------
+  PHASE 3: ANALYSIS-BY-PARTS (GROSS IMPACT)
+------------------------------------------------------------------------------
+
+  Value Added (farm income):  $500.0K
+  Disposable income (75%):    $375.0K
+
+  Component                     Output             GDP       Jobs
+  ------------------------------------------------------------
+    Direct                      $1.00M         $500.0K       10.0
+    Indirect                   $166.2K         $135.4K        2.1
+    Induced                    $187.5K         $195.0K        2.9
+  GROSS                         $1.35M         $830.4K       15.1
+
+------------------------------------------------------------------------------
+  PHASE 4: SWENSON NET-IMPACT COUNTERFACTUAL
+------------------------------------------------------------------------------
+
+  Conventional grocery local shock:
+    Retail Trade: $255.0K
+    Wholesale Trade: $75.0K
+    Food Manufacturing: $110.0K
+
+  Displaced activity:
+    Output:     $823.0K
+    GDP:        $379.6K
+    Jobs:       8.0
+
+==============================================================================
+  FINAL COMPARISON: NAIVE vs. GROSS vs. NET LOCAL FOOD IMPACT
+  (Per $1.00M of consumer food spending)
+==============================================================================
+
+           Metric Naive StatCan Gross Local Food Net Local Food
+     Total Output        $1.82M           $1.35M        $530.7K
+ GDP Contribution       $450.0K          $830.4K        $450.7K
+   Jobs Supported           8.5             15.1            7.1
+Output Multiplier         1.82x            1.35x          0.53x
+   GDP Multiplier         0.45x            0.83x          0.45x
+     Jobs per $1M           8.5             15.1            7.1
+
+==============================================================================
+  ANALYTICAL DIAGNOSTIC
+==============================================================================
+
+  WHY LOCAL FOOD HAS A HIGHER EMPLOYMENT MULTIPLIER:
+
+  1. LABOUR INTENSITY: Local DTC farms allocate ~30% of revenue to hired labor
+     vs. ~15-20% for conventional commodity farms. This directly creates more
+     jobs per dollar of output.
+
+  2. MARGIN CAPTURE: When a farmer sells direct-to-consumer, they capture the
+     retail margin (~30%) and wholesale margin (~15%) that would otherwise leak
+     to corporate supply chains. This retained income stays in the local economy.
+
+  3. IMPORT SUBSTITUTION: Conventional grocery supply chains source ~80% of
+     farm-gate product from outside Ontario. Local food replaces these imports
+     with provincial production, keeping spending within the regional economy.
+
+  EVEN AFTER the Swenson net-impact correction (subtracting the displaced
+  conventional grocery activity), local food generates a NET POSITIVE impact
+  of $530.7K in output and 7.1 net jobs
+  per $1.00M redirected from conventional to local purchasing.
+
+  KEY CAVEAT: These results use MOCK multipliers and proxy RPCs. Before
+  publication or policy use, replace with real StatCan Table 36-10-0595-01
+  multipliers and Ontario-specific Regional Purchase Coefficients.
+

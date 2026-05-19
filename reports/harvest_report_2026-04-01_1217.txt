@@ -1,0 +1,36 @@
+==============================================================================
+  AGRICULTURAL ECONOMICS RESEARCH DATABASE — MONTHLY HARVEST REPORT
+==============================================================================
+
+  Run Started:   2026-04-01 12:17:10 EST
+  Run Completed: 2026-04-01 12:17:11 EST
+  Total Runtime: 0.0 minutes
+
+  OVERALL STATUS: ✓ SUCCESS
+
+  ── New Content Added ──
+    New papers:            +0
+    New PDFs:              +0
+    New abstracts:         +0
+
+  ── Database Totals (After) ──
+    Total papers:        54,432
+    Total PDFs:             305
+    With abstracts:      30,589
+    With full text:           1
+    PDF storage:          0.46 GB
+
+  ── Papers by Source (Before → After) ──
+    ageconsearch                    20,074 → 20,074  (  ─)
+    grey_agrifoodecon                  115 →    115  (  ─)
+    grey_capi                          197 →    197  (  ─)
+    grey_fcc                            49 →     49  (  ─)
+    openalex                        33,997 → 33,997  (  ─)
+
+──────────────────────────────────────────────────────────────────────────────
+  PHASE-BY-PHASE DETAILS
+──────────────────────────────────────────────────────────────────────────────
+
+==============================================================================
+  Report saved to: C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\reports\harvest_report_2026-04-01_1217.txt
+==============================================================================

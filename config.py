@@ -7,6 +7,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "ag_econ_research.db")
 PDF_DIR = os.path.join(BASE_DIR, "papers")
+GREY_LIT_DIR = os.path.join(PDF_DIR, "00_Grey_Lit")
 
 # ── Storage Budget ──────────────────────────────────────────────────────────
 # Maximum GB to use for PDF downloads. Set to 0 to skip PDF downloads entirely.
@@ -115,3 +116,4 @@ PDF_DOWNLOAD_DELAY = 1.0    # Seconds between downloads (be respectful)
 PDF_DOWNLOAD_TIMEOUT = 30   # Seconds before timeout per file
 PDF_MAX_RETRIES = 3         # Max retry attempts per file
 REQUEST_TIMEOUT = 30        # Seconds for API requests
+GREY_LIT_SCRAPE_DELAY = 2.0 # Seconds between grey lit page requests

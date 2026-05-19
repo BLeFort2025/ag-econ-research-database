@@ -5,6 +5,7 @@ CLI entry point for running harvests, downloading PDFs, and checking status.
 Usage:
     python pipeline.py harvest-openalex [--journals-only] [--max-per-journal N]
     python pipeline.py harvest-ageconsearch [--max-records N]
+    python pipeline.py harvest-grey-lit [--sources agrifoodecon capi fcc]
     python pipeline.py download-pdfs [--limit N] [--tier N]
     python pipeline.py status
     python pipeline.py full [--max-per-journal N] [--max-search N]
@@ -37,11 +38,28 @@ def cmd_harvest_ageconsearch(args):
     harvest_ageconsearch(max_records=args.max_records)
 
 
+def cmd_harvest_grey_lit(args):
+    """Run the grey literature harvester."""
+    from db import init_db
+    from grey_lit_harvester import harvest_grey_lit
+
+    init_db()
+    sources = args.sources if args.sources else None
+    harvest_grey_lit(sources)
+
+
 def cmd_download_pdfs(args):
     """Download available open-access PDFs."""
     from pdf_downloader import download_pdfs
 
     download_pdfs(limit=args.limit, tier=args.tier)
+
+
+def cmd_extract_text(args):
+    """Extract full text from downloaded PDFs."""
+    from pdf_text_extractor import extract_all
+
+    extract_all(limit=args.limit, tier_filter=args.tier, force=args.force)
 
 
 def cmd_status(args):
@@ -123,6 +141,16 @@ def cmd_full(args):
     from ageconsearch_harvester import harvest_ageconsearch
     harvest_ageconsearch(max_records=args.max_ageconsearch)
 
+    # Phase 2.5: Grey Literature
+    if not args.skip_grey_lit:
+        print("\n" + "─" * 70)
+        print("  PHASE 2.5: Grey Literature Harvest")
+        print("─" * 70)
+        from grey_lit_harvester import harvest_grey_lit
+        harvest_grey_lit()
+    else:
+        print("\n[SKIP] Grey literature harvest skipped (--skip-grey-lit)")
+
     # Phase 3: PDF Downloads (if budget > 0)
     from config import MAX_PDF_STORAGE_GB
     if MAX_PDF_STORAGE_GB > 0:
@@ -141,6 +169,48 @@ def cmd_full(args):
     cmd_status(args)
 
 
+def cmd_phase0(args):
+    """Run Phase 0 database strengthening: Download PDFs -> Extract text -> Rebuild embeddings."""
+    from db import init_db
+
+    init_db()
+
+    print("\n" + "=" * 70)
+    print("  PHASE 0: DATABASE STRENGTHENING")
+    print(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 70)
+
+    # Step 1: Download PDFs
+    print("\n" + "─" * 70)
+    print("  STEP 1: PDF Downloads")
+    print("─" * 70)
+    from pdf_downloader import download_pdfs
+    download_pdfs(limit=args.pdf_limit, tier=args.tier)
+
+    # Step 2: Extract text
+    print("\n" + "─" * 70)
+    print("  STEP 2: Full-Text Extraction")
+    print("─" * 70)
+    from pdf_text_extractor import extract_all
+    extract_all(tier_filter=args.tier)
+
+    # Step 3: Rebuild embeddings
+    if not args.skip_embed:
+        print("\n" + "─" * 70)
+        print("  STEP 3: Rebuild Embeddings (with full text)")
+        print("─" * 70)
+        from embeddings import build_embeddings
+        build_embeddings(force_rebuild=True)
+    else:
+        print("\n[SKIP] Embedding rebuild skipped (--skip-embed)")
+
+    # Final status
+    print("\n" + "─" * 70)
+    print("  PHASE 0 COMPLETE")
+    print("─" * 70)
+    cmd_status(args)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Agricultural Economics Research Database Pipeline",
@@ -150,6 +220,8 @@ Examples:
   python pipeline.py status                    Show database stats
   python pipeline.py harvest-openalex          Harvest from OpenAlex API
   python pipeline.py harvest-ageconsearch      Harvest from AgEcon Search
+  python pipeline.py harvest-grey-lit          Harvest grey literature
+  python pipeline.py harvest-grey-lit --sources fcc  Harvest FCC only
   python pipeline.py download-pdfs --limit 50  Download 50 PDFs
   python pipeline.py full                      Run everything
         """,
@@ -168,6 +240,20 @@ Examples:
     p_ag.add_argument("--max-records", type=int, default=None, help="Max records to harvest")
     p_ag.set_defaults(func=cmd_harvest_ageconsearch)
 
+    # harvest-grey-lit
+    p_gl = sub.add_parser("harvest-grey-lit", help="Harvest grey literature from Canadian agri-food think tanks and government portals")
+    p_gl.add_argument(
+        "--sources", nargs="+",
+        choices=[
+            # Think tanks
+            "agrifoodecon", "capi", "fcc", "cdhowe", "iisd", "smartprosperity", "canadawest",
+            # Government
+            "aafc", "statcan_ag", "omafra", "pbo",
+        ],
+        help="Specific sources to harvest (default: all)",
+    )
+    p_gl.set_defaults(func=cmd_harvest_grey_lit)
+
     # download-pdfs
     p_dl = sub.add_parser("download-pdfs", help="Download open-access PDFs")
     p_dl.add_argument("--limit", type=int, default=None, help="Max PDFs to download")
@@ -185,7 +271,22 @@ Examples:
     p_full.add_argument("--max-ageconsearch", type=int, default=None, help="Max AgEcon Search records")
     p_full.add_argument("--journals-only", action="store_true", help="Skip topic-based search")
     p_full.add_argument("--pdf-limit", type=int, default=None, help="Max PDFs to download")
+    p_full.add_argument("--skip-grey-lit", action="store_true", help="Skip grey literature harvest")
     p_full.set_defaults(func=cmd_full)
+
+    # extract-text
+    p_et = sub.add_parser("extract-text", help="Extract full text from downloaded PDFs")
+    p_et.add_argument("--limit", type=int, default=None, help="Max PDFs to process")
+    p_et.add_argument("--tier", type=int, choices=[1, 2, 3, 4], help="Process only this tier")
+    p_et.add_argument("--force", action="store_true", help="Re-extract already-processed PDFs")
+    p_et.set_defaults(func=cmd_extract_text)
+
+    # phase0
+    p_p0 = sub.add_parser("phase0", help="Run Phase 0: Download PDFs -> Extract text -> Rebuild embeddings")
+    p_p0.add_argument("--tier", type=int, choices=[1, 2, 3, 4], help="Only process this tier")
+    p_p0.add_argument("--pdf-limit", type=int, default=None, help="Max PDFs to download")
+    p_p0.add_argument("--skip-embed", action="store_true", help="Skip the embedding rebuild step")
+    p_p0.set_defaults(func=cmd_phase0)
 
     args = parser.parse_args()
 

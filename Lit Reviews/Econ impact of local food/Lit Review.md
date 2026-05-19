@@ -1,0 +1,67 @@
+# Literature Review: Economic Impact of Local Food Systems
+
+## 1. Introduction
+This review synthesizes the current literature surrounding the economic impacts of local and regional food systems. Based on a comprehensive query of our Agricultural Economics Research Database, several key reports have been identified that assess the economic footprint of farmers markets, farm-to-school programs, and local wholesale infrastructure. This review focuses specifically on the **datasets** and **methodologies** employed in these studies to provide a roadmap for conducting a similar analysis in Ontario.
+
+## 2. Review of Key Reports
+
+### 2.1 Economic impact assessment of public incentives to support farm-to-school food purchases (2023)
+* **Focus**: The economic ripple effects of public funding directed at farm-to-school food purchases.
+* **Datasets**: Primary data from school district purchasing records combined with state/federal funding allocation data.
+* **Methods**: Input-Output (I-O) modeling (typically IMPLAN or state-level equivalents). By treating the public incentives as an exogenous shock to the local agricultural sector, the researchers estimate the indirect and induced economic impacts, calculating a localized multiplier effect for every dollar spent on local food in schools.
+
+### 2.2 Local and Regional Food Systems in Florida: Values and Economic Impacts (2014)
+* **Focus**: Consumer characteristics and the broader economic impacts of local food purchases through various channels (retail, restaurants, farmers markets).
+* **Datasets**: A large-scale primary household survey (n=1,599) conducted in 2012. This captured stated preferences, actual expenditure data on local foods, and willingness-to-pay metrics.
+* **Methods**: The study utilized a two-pronged approach. First, econometric analysis of the survey data to identify demographic drivers of local food consumption. Second, economic impact analysis using IMPLAN to trace how household expenditures on local food circulated through the Florida economy, calculating Value-Added, Employment, and Output multipliers.
+
+### 2.3 Local Food Wholesale Infrastructure in New York State (2012)
+* **Focus**: The economic impact and policy implications of developing local food wholesale infrastructure (food hubs).
+* **Datasets**: Supply chain data, interviews with mid-tier value chain actors, and capital investment figures for wholesale infrastructure.
+* **Methods**: A combination of qualitative supply-chain analysis and regional economic modeling. The study likely utilized regional purchase coefficients (RPCs) to estimate how localized infrastructure prevents financial leakage out of the state, thereby increasing the regional multiplier.
+
+### 2.4 An Evaluation of the Economic Impacts of Oklahoma Farmers Markets (2009)
+* **Focus**: The contribution of farmers markets to the state economy.
+* **Datasets**: Primary intercept surveys conducted on-site at various farmers markets. These surveys captured average visitor spend, frequency of visits, and vendor revenue estimates.
+* **Methods**: Multiplier analysis using Input-Output models. The direct vendor sales were fed into an I-O model to calculate the total economic contribution (Direct, Indirect, and Induced effects) of the markets to the Oklahoma economy.
+
+### 2.5 Buying Local? An exploratory analysis of barriers to local food sales (2015)
+* **Focus**: The perspective of intermediary buyers (wholesalers, distributors) in California and North Carolina regarding local food.
+* **Datasets**: Qualitative and quantitative survey data from intermediary buyers.
+* **Methods**: Exploratory statistical analysis and thematic coding. While not an I-O impact study, it highlights a crucial methodological requirement: understanding supply chain bottlenecks that prevent local economic multipliers from being fully realized.
+
+---
+
+## 3. Synthesis of Datasets & Methods
+
+Across the literature, evaluating the economic impact of local food relies on a consistent two-step methodological framework:
+
+1.  **Primary Data Collection (The "Direct" Impact)**: Secondary datasets are rarely sufficient because standard census data (like NAICS codes) do not differentiate between "local" and "non-local" sales. Therefore, studies rely heavily on:
+    *   **Consumer/Household Surveys**: To estimate total expenditures and premiums paid for local food.
+    *   **Intercept Surveys**: To capture specific channel data (e.g., farmers markets).
+    *   **Institutional/Buyer Data**: To capture wholesale and public procurement (e.g., schools, hospitals).
+2.  **Input-Output Modeling (The "Ripple" Effect)**: Once the direct spending is quantified, studies universally employ regional Input-Output models (like IMPLAN in the US) to calculate:
+    *   **Indirect Impacts**: Supply chain purchases made by the local food producers (e.g., buying local feed, packaging).
+    *   **Induced Impacts**: The economic activity generated by the wages spent by the farmers and their employees in the local economy.
+
+---
+
+## 4. Recommendations for an Ontario/Canada Local Food Economic Impact Report
+
+To create a defensible and highly impactful report detailing the economic impact of local food in Ontario, the OFA should adopt the following methodology, leveraging existing internal assets:
+
+### Step 1: Define "Local" and Establish Baseline Expenditures
+*   **Recommendation**: Clearly define "local food" (e.g., grown and processed within Ontario). 
+*   **Dataset Strategy**: Instead of a costly general population survey, leverage the **Agri-Food Economic Dashboard** and **StatCan Food Availability/Expenditure data** to establish total provincial food consumption. Then, model a specific policy scenario (e.g., "What if Ontario replaces 10% of imported produce with locally grown alternatives?"). This is an **Import Substitution** methodology.
+
+### Step 2: Utilize the OFA IO Multiplier Engine
+*   **Recommendation**: Do not build a new economic model from scratch. 
+*   **Methodology**: Utilize the existing **Input-Output (IO) Multiplier Engine** built into the OFA Agri-Food Economic Dashboard. 
+*   **Execution**: Feed the targeted "local food expenditure shift" (the direct impact) into the IO Engine. The engine is already calibrated with Statistics Canada provincial multipliers for the agricultural and food processing NAICS sectors. This will immediately output the Indirect and Induced impacts on Provincial GDP, Employment (FTEs), and Labor Income.
+
+### Step 3: Integrate Primary Data from the OFA Membership
+*   **Recommendation**: To differentiate the local food supply chain from commodity export agriculture, utilize data from the **OFA Membership Survey**. 
+*   **Methodology**: Extract metrics on farm-gate direct sales, CSA participation, and local labor utilization (Labor Realization Factors). This grounds the economic modeling in actual, verifiable data from Ontario farmers, making the final report highly defensible for provincial advocacy.
+
+### Summary of the Recommended Approach
+An Ontario Local Food Economic Impact report will be most successful if it avoids trying to measure *all* current local food transactions (which is notoriously difficult to track). Instead, it should model the **economic opportunity of import substitution**: quantifying the GDP and employment gains that would occur if Ontario institutions (MASH sector) and consumers shifted a specific percentage of their budget to Ontario-grown products, calculated using the OFA's existing IO Multiplier Engine.

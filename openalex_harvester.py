@@ -223,7 +223,7 @@ class OpenAlexHarvester:
 
         return True
 
-    def harvest_by_journal(self, journal_info, max_papers=None):
+    def harvest_by_journal(self, journal_info, max_papers=None, from_date=None):
         """
         Harvest all papers from a specific journal.
         Returns (added_count, skipped_count).
@@ -244,12 +244,20 @@ class OpenAlexHarvester:
         cursor = "*"
         page = 0
 
+        # Build filter string
+        filter_str = f"primary_location.source.id:{source_id}"
+        if from_date:
+            filter_str += f",from_publication_date:{from_date}"
+            sort_str = "publication_date:desc"
+        else:
+            sort_str = "cited_by_count:desc"
+
         try:
             while cursor:
                 page += 1
                 params = {
-                    "filter": f"primary_location.source.id:{source_id}",
-                    "sort": "cited_by_count:desc",
+                    "filter": filter_str,
+                    "sort": sort_str,
                     "cursor": cursor,
                 }
 
@@ -290,7 +298,7 @@ class OpenAlexHarvester:
         print(f"  [DONE] {journal_name}: {added} added, {skipped} skipped")
         return added, skipped
 
-    def harvest_by_search(self, search_term, max_papers=2000):
+    def harvest_by_search(self, search_term, max_papers=2000, from_date=None):
         """
         Harvest papers matching a search term across all sources.
         Returns (added_count, skipped_count).
@@ -305,13 +313,21 @@ class OpenAlexHarvester:
         cursor = "*"
         page = 0
 
+        # Build filter string
+        filter_str = "type:journal-article"
+        if from_date:
+            filter_str += f",from_publication_date:{from_date}"
+            sort_str = "publication_date:desc"
+        else:
+            sort_str = "cited_by_count:desc"
+
         try:
             while cursor:
                 page += 1
                 params = {
                     "search": search_term,
-                    "filter": "type:journal-article",
-                    "sort": "cited_by_count:desc",
+                    "filter": filter_str,
+                    "sort": sort_str,
                     "cursor": cursor,
                 }
 
@@ -351,7 +367,7 @@ class OpenAlexHarvester:
         print(f"  [DONE] '{search_term}': {added} added, {skipped} skipped")
         return added, skipped
 
-    def harvest_all_journals(self, max_per_journal=None):
+    def harvest_all_journals(self, max_per_journal=None, from_date=None):
         """Harvest from all priority journals in tier order."""
         total_added = 0
         total_skipped = 0
@@ -359,20 +375,20 @@ class OpenAlexHarvester:
         sorted_journals = sorted(PRIORITY_JOURNALS, key=lambda j: j["tier"])
 
         for journal in sorted_journals:
-            added, skipped = self.harvest_by_journal(journal, max_papers=max_per_journal)
+            added, skipped = self.harvest_by_journal(journal, max_papers=max_per_journal, from_date=from_date)
             total_added += added
             total_skipped += skipped
 
         print(f"\n[SUMMARY] All journals: {total_added} papers added, {total_skipped} skipped")
         return total_added, total_skipped
 
-    def harvest_all_search_terms(self, max_per_term=2000):
+    def harvest_all_search_terms(self, max_per_term=2000, from_date=None):
         """Harvest papers by searching for each ag econ search term."""
         total_added = 0
         total_skipped = 0
 
         for term in AG_ECON_SEARCH_TERMS:
-            added, skipped = self.harvest_by_search(term, max_papers=max_per_term)
+            added, skipped = self.harvest_by_search(term, max_papers=max_per_term, from_date=from_date)
             total_added += added
             total_skipped += skipped
 
@@ -380,7 +396,7 @@ class OpenAlexHarvester:
         return total_added, total_skipped
 
 
-def harvest_openalex(max_per_journal=None, max_per_search=2000, journals_only=False):
+def harvest_openalex(max_per_journal=None, max_per_search=2000, journals_only=False, from_date=None):
     """Main entry point for OpenAlex harvesting."""
     harvester = OpenAlexHarvester()
 
@@ -389,12 +405,12 @@ def harvest_openalex(max_per_journal=None, max_per_search=2000, journals_only=Fa
     print("=" * 70)
 
     # Phase 1: Priority journals (these are the most targeted)
-    j_added, j_skipped = harvester.harvest_all_journals(max_per_journal)
+    j_added, j_skipped = harvester.harvest_all_journals(max_per_journal, from_date=from_date)
 
     s_added, s_skipped = 0, 0
     if not journals_only:
         # Phase 2: Broader topic searches (fills in working papers, etc.)
-        s_added, s_skipped = harvester.harvest_all_search_terms(max_per_search)
+        s_added, s_skipped = harvester.harvest_all_search_terms(max_per_search, from_date=from_date)
 
     total_added = j_added + s_added
     total_skipped = j_skipped + s_skipped
