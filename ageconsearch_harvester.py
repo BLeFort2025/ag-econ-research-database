@@ -261,6 +261,7 @@ class AgEconSearchHarvester:
         skipped = 0
         batch = 0
         resumption_token = None
+        fail_count = 0
 
         try:
             while True:
@@ -280,9 +281,15 @@ class AgEconSearchHarvester:
 
                 if tree is None:
                     print(f"  [ERROR] Failed to get response on batch {batch}")
-                    # Wait and retry once
+                    fail_count += 1
+                    if fail_count > 3:
+                        print("  [ERROR] Too many consecutive failures. Aborting harvest.")
+                        break
+                    # Wait and retry
                     time.sleep(5)
                     continue
+                else:
+                    fail_count = 0
 
                 # Check for OAI-PMH errors
                 error = tree.find(f".//oai:error", NSMAP)
@@ -293,8 +300,14 @@ class AgEconSearchHarvester:
                     if error_code == "noRecordsMatch":
                         break
                     # For transient errors, wait and retry
+                    fail_count += 1
+                    if fail_count > 3:
+                        print("  [ERROR] Too many consecutive OAI errors. Aborting.")
+                        break
                     time.sleep(10)
                     continue
+                else:
+                    fail_count = 0
 
                 # Process records
                 records = tree.findall(f".//oai:record", NSMAP)

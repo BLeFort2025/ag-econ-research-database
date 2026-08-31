@@ -76,7 +76,7 @@ class GreyLitHarvester:
         os.makedirs(directory, exist_ok=True)
         return directory
 
-    def _safe_filename(self, title, max_len=50):
+    def _safe_filename(self, title, max_len=35):
         """Create a filesystem-safe filename from a title (short for Windows)."""
         safe = "".join(c if c.isalnum() or c in " -" else "" for c in title)
         safe = safe.strip()
@@ -84,8 +84,11 @@ class GreyLitHarvester:
 
     def _download_pdf(self, url, save_path):
         """Download a PDF file. Returns (success, file_size_bytes)."""
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
+        except OSError:
+            return False, 0
+
         for attempt in range(1, PDF_MAX_RETRIES + 1):
             try:
                 resp = self.session.get(
@@ -99,33 +102,35 @@ class GreyLitHarvester:
                     return False, 0
 
                 total_bytes = 0
-                with open(save_path, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                        total_bytes += len(chunk)
+                try:
+                    with open(save_path, "wb") as f:
+                        for chunk in resp.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                            total_bytes += len(chunk)
 
-                # Verify PDF magic bytes
-                with open(save_path, "rb") as f:
-                    header = f.read(5)
-                    if header != b"%PDF-":
-                        try:
-                            os.remove(save_path)
-                        except PermissionError:
-                            pass  # OneDrive may lock the file
-                        return False, 0
+                    # Verify PDF magic bytes
+                    with open(save_path, "rb") as f:
+                        header = f.read(5)
+                        if header != b"%PDF-":
+                            try:
+                                os.remove(save_path)
+                            except (PermissionError, OSError):
+                                pass
+                            return False, 0
+                except OSError:
+                    return False, 0
 
                 return True, total_bytes
 
             except requests.RequestException as e:
                 if attempt < PDF_MAX_RETRIES:
                     wait = 2 ** attempt
-                    print(f"      [RETRY {attempt}/{PDF_MAX_RETRIES}] {e} — waiting {wait}s")
                     time.sleep(wait)
                 else:
                     if os.path.exists(save_path):
                         try:
                             os.remove(save_path)
-                        except PermissionError:
+                        except (PermissionError, OSError):
                             pass
                     return False, 0
 
@@ -1083,6 +1088,146 @@ class CanadaWestHarvester(GreyLitHarvester):
         return all_papers
 
 
+# ── Source 9: Agriculture and Agri-Food Canada (AAFC) ──────────────────────
+
+class AAFCHarvester(GreyLitHarvester):
+    """
+    Scrape AAFC publications.
+    Visits the base urls and looks for PDF links.
+    """
+    def __init__(self):
+        super().__init__("aafc")
+
+    def scrape_papers(self):
+        papers = []
+        seen_urls = set()
+
+        for url in self.source["scrape_urls"]:
+            print(f"  [SCRAPE] {url}")
+            soup = self._get_page(url)
+            if not soup:
+                continue
+
+            # Find PDF links on the main page
+            for link in soup.find_all("a", href=True):
+                href = link["href"].strip()
+                if not href.lower().endswith(".pdf"):
+                    continue
+                    
+                full_url = urljoin(url, href)
+                if full_url in seen_urls:
+                    continue
+                seen_urls.add(full_url)
+                
+                title = self._clean_title(link.get_text(strip=True) or link.get("title", ""))
+                if not title or len(title) < 5:
+                    title = unquote(os.path.basename(href)).replace(".pdf", "").replace("-", " ")
+                    title = self._clean_title(title)
+                
+                papers.append({
+                    "title": title,
+                    "pdf_url": full_url,
+                    "year": extract_year_from_text(title),
+                    "paper_type": detect_paper_type(title, "report"),
+                    "detail_url": url,
+                })
+                
+            time.sleep(GREY_LIT_SCRAPE_DELAY)
+            
+        print(f"  [TOTAL] {len(papers)} AAFC papers found")
+        return papers
+
+
+# ── Source 10: Statistics Canada ────────────────────────────────────────────
+
+class StatCanAgHarvester(GreyLitHarvester):
+    """
+    Scrape Statistics Canada agriculture publications.
+    Visits catalog pages and looks for PDF links, applying keyword filters.
+    """
+    def __init__(self):
+        super().__init__("statcan_ag")
+
+    def scrape_papers(self):
+        papers = []
+        seen_urls = set()
+
+        for url in self.source["scrape_urls"]:
+            print(f"  [SCRAPE] {url}")
+            soup = self._get_page(url)
+            if not soup:
+                continue
+
+            # First, look for direct PDF links
+            pdf_links = []
+            for link in soup.find_all("a", href=True):
+                href = link["href"].strip()
+                if href.lower().endswith(".pdf"):
+                    pdf_links.append((link, urljoin(url, href)))
+                
+            # If no PDFs, try to find links that look like publication detail pages and scrape them
+            # For StatCan, these often look like /pub/ or /n1/pub/
+            detail_links = []
+            for link in soup.find_all("a", href=True):
+                href = link["href"].strip()
+                if "/pub/" in href or "catalogue" in href or "article" in href:
+                    full_url = urljoin(url, href)
+                    if full_url not in seen_urls:
+                        detail_links.append((link, full_url))
+            
+            # Extract from direct PDF links
+            for link, full_url in pdf_links:
+                if full_url in seen_urls:
+                    continue
+                seen_urls.add(full_url)
+                title = self._clean_title(link.get_text(strip=True))
+                if not title or len(title) < 5:
+                    title = unquote(os.path.basename(full_url)).replace(".pdf", "")
+                
+                if passes_keyword_filter(title):
+                    papers.append({
+                        "title": title,
+                        "pdf_url": full_url,
+                        "year": extract_year_from_text(title),
+                        "paper_type": detect_paper_type(title, "report"),
+                        "detail_url": url,
+                    })
+
+            # Check detail links (limit to 10 to avoid scraping too much on catalog pages)
+            count = 0
+            for link, detail_url in detail_links:
+                if detail_url in seen_urls or count >= 10:
+                    continue
+                seen_urls.add(detail_url)
+                
+                title = self._clean_title(link.get_text(strip=True))
+                if not title or len(title) < 5 or not passes_keyword_filter(title):
+                    continue
+                    
+                print(f"    [DETAIL] {title[:60]}...")
+                detail_soup = self._get_page(detail_url)
+                if detail_soup:
+                    for d_link in detail_soup.find_all("a", href=True):
+                        d_href = d_link["href"].strip()
+                        if d_href.lower().endswith(".pdf"):
+                            d_full_url = urljoin(detail_url, d_href)
+                            if d_full_url not in seen_urls:
+                                seen_urls.add(d_full_url)
+                                papers.append({
+                                    "title": title,
+                                    "pdf_url": d_full_url,
+                                    "year": extract_year_from_text(title),
+                                    "paper_type": detect_paper_type(title, "report"),
+                                    "detail_url": detail_url,
+                                })
+                                count += 1
+                                break # Found the PDF for this article
+                time.sleep(GREY_LIT_SCRAPE_DELAY)
+
+        print(f"  [TOTAL] {len(papers)} StatCan agriculture papers found")
+        return papers
+
+
 # ── Main Entry Point ────────────────────────────────────────────────────────
 
 HARVESTERS = {
@@ -1093,6 +1238,8 @@ HARVESTERS = {
     "iisd": IISDHarvester,
     "smartprosperity": SmartProsperityHarvester,
     "canadawest": CanadaWestHarvester,
+    "aafc": AAFCHarvester,
+    "statcan_ag": StatCanAgHarvester,
 }
 
 

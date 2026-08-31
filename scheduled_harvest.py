@@ -243,17 +243,39 @@ def main():
         print(f"         → {phases[-1]['status']} ({phases[-1]['duration_sec']:.0f}s)")
 
         # ── Phase 4: PDF Downloads ──
-        print("  [4/4] PDF downloads...")
+        print("  [4/6] PDF downloads...")
 
         def run_pdf_downloads():
             from config import MAX_PDF_STORAGE_GB
             if MAX_PDF_STORAGE_GB > 0:
                 from pdf_downloader import download_pdfs
-                download_pdfs(limit=None)
+                # Prioritize Tier 1 (100) and Tier 2 (150) papers -> 250 target ceiling
+                download_pdfs(limit=100, tier=1)
+                download_pdfs(limit=150, tier=2)
             else:
                 print("PDF downloads disabled (MAX_PDF_STORAGE_GB = 0)")
 
         phases.append(run_phase("PDF Downloads", run_pdf_downloads))
+        print(f"         → {phases[-1]['status']} ({phases[-1]['duration_sec']:.0f}s)")
+
+        # ── Phase 5: Deep Text Extraction via PyMuPDF ──
+        print("  [5/6] Extracting full text from PDFs...")
+
+        def run_text_extraction():
+            from pdf_text_extractor import extract_all
+            extract_all(limit=None, force=False)
+
+        phases.append(run_phase("PyMuPDF Full Text Extraction", run_text_extraction))
+        print(f"         → {phases[-1]['status']} ({phases[-1]['duration_sec']:.0f}s)")
+
+        # ── Phase 6: Vector Indexing (ChromaDB) ──
+        print("  [6/6] Incremental ChromaDB Vector Indexing...")
+
+        def run_embeddings():
+            from embeddings import build_embeddings
+            build_embeddings(limit=None)
+
+        phases.append(run_phase("ChromaDB Vector Indexing", run_embeddings))
         print(f"         → {phases[-1]['status']} ({phases[-1]['duration_sec']:.0f}s)")
 
     else:

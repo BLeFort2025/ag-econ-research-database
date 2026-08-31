@@ -1,0 +1,155 @@
+==============================================================================
+  AGRICULTURAL ECONOMICS RESEARCH DATABASE — MONTHLY HARVEST REPORT
+==============================================================================
+
+  Run Started:   2026-08-31 11:47:26 EST
+  Run Completed: 2026-08-31 12:21:15 EST
+  Total Runtime: 33.8 minutes
+
+  OVERALL STATUS: ✗ PARTIAL FAILURE
+
+  ── New Content Added ──
+    New papers:           +46
+    New PDFs:              +2
+    New abstracts:        +22
+
+  ── Database Totals (After) ──
+    Total papers:       168,780
+    Total PDFs:             333
+    With abstracts:      89,110
+    With full text:         332
+    PDF storage:          0.50 GB
+
+  ── Papers by Source (Before → After) ──
+    ageconsearch                    121,406 → 121,406  (  ─)
+    grey_agrifoodecon                  119 →    119  (  ─)
+    grey_capi                          200 →    201  (+1)
+    grey_fcc                            49 →     49  (  ─)
+    grey_iisd                          221 →    222  (+1)
+    grey_smartprosperity                 0 →      1  (+1)
+    manual_statcan                       1 →      1  (  ─)
+    openalex                        46,738 → 46,781  (+43)
+
+──────────────────────────────────────────────────────────────────────────────
+  PHASE-BY-PHASE DETAILS
+──────────────────────────────────────────────────────────────────────────────
+
+  Phase 1: OpenAlex Harvest  [✓ SUCCESS]
+  Duration: 9.2s
+  Key Output:
+    Page 1: +43 works | Total in API: 43 | DB added: 14, skipped: 29
+    [DONE] World Development: 14 added, 29 skipped
+    [HARVEST] Journal of Development Economics (Tier 4, Source: S101209419)
+    Page 1: +38 works | Total in API: 38 | DB added: 10, skipped: 28
+    [DONE] Journal of Development Economics: 10 added, 28 skipped
+    [SUMMARY] All journals: 43 papers added, 148 skipped
+    [DONE] 'agricultural economics': 0 added, 0 skipped
+    [DONE] 'farm income': 0 added, 0 skipped
+    [DONE] 'agricultural policy': 0 added, 0 skipped
+    [DONE] 'agricultural trade': 0 added, 0 skipped
+    [DONE] 'food security': 0 added, 0 skipped
+    [DONE] 'rural development': 0 added, 0 skipped
+    [DONE] 'crop insurance': 0 added, 0 skipped
+    [DONE] 'farm management': 0 added, 0 skipped
+    [DONE] 'land use economics': 0 added, 0 skipped
+    [DONE] 'agribusiness': 0 added, 0 skipped
+    [DONE] 'supply management': 0 added, 0 skipped
+    [DONE] 'business risk management agriculture': 0 added, 0 skipped
+    [SUMMARY] All search terms: 0 papers added, 0 skipped
+    HARVEST COMPLETE: 43 papers added, 148 duplicates skipped
+
+  Phase 2: AgEcon Search Harvest  [✓ SUCCESS]
+  Duration: 246.7s
+  Key Output:
+    [ERROR] OAI-PMH request failed: HTTPSConnectionPool(host='ageconsearch.umn.edu', port=443): Read timed out. (read timeout=30)
+    [ERROR] Failed to get response on batch 1
+    [ERROR] OAI-PMH request failed: 503 Server Error: Service Unavailable for url: https://ageconsearch.umn.edu:443/oai2d?verb=ListRecords&metadataPrefix=marcxml&from=2026-07-02
+    [ERROR] Failed to get response on batch 2
+    [ERROR] OAI-PMH request failed: HTTPSConnectionPool(host='ageconsearch.umn.edu', port=443): Read timed out. (read timeout=30)
+    [ERROR] Failed to get response on batch 3
+    Batch 4: 100 records | +0 new | Total: 0 added, 100 skipped
+    Repository reports 3067 total records
+    [ERROR] OAI-PMH request failed: HTTPSConnectionPool(host='ageconsearch.umn.edu', port=443): Read timed out. (read timeout=30)
+    [ERROR] Failed to get response on batch 5
+    [ERROR] OAI-PMH request failed: HTTPSConnectionPool(host='ageconsearch.umn.edu', port=443): Read timed out. (read timeout=30)
+    [ERROR] Failed to get response on batch 6
+    [ERROR] OAI-PMH request failed: HTTPSConnectionPool(host='ageconsearch.umn.edu', port=443): Read timed out. (read timeout=30)
+    [ERROR] Failed to get response on batch 7
+    [ERROR] OAI-PMH request failed: HTTPSConnectionPool(host='ageconsearch.umn.edu', port=443): Read timed out. (read timeout=30)
+    [ERROR] Failed to get response on batch 8
+    [ERROR] Too many consecutive failures. Aborting harvest.
+    [DONE] AgEcon Search: 0 papers added, 100 skipped
+
+  Phase 3: Grey Literature Harvest  [✗ FAILED]
+  Duration: 1762.5s
+  ERROR:
+    FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\ben.lefort\\OneDrive - Ontario Federation of Agriculture\\Desktop\\Ben Desktop Files\\Economic Analyst Position\\Economic papers\\Ag Economic Research Database\\papers\\00_Grey_Lit\\SmartProsperity\\2026\\168781_Submission to Agriculture and Agri-Food Canadas Co.pdf'
+    Traceback (most recent call last):
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\scheduled_harvest.py", line 86, in run_phase
+        func(*args, **kwargs)
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\scheduled_harvest.py", line 240, in run_grey_lit
+        harvest_grey_lit()
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\grey_lit_harvester.py", line 1262, in harvest_grey_lit
+        added, skipped = harvester.harvest()
+                         ^^^^^^^^^^^^^^^^^^^
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\grey_lit_harvester.py", line 209, in harvest
+  Key Output:
+    PDFs downloaded: 0
+    PDFs failed:     0
+    [TOTAL] 0 C.D. Howe papers after keyword filter (from 0 candidates)
+    [SCRAPED] Found 0 papers from C.D. Howe Institute
+    HARVEST COMPLETE: C.D. Howe Institute
+    Papers added:    0
+    Papers skipped:  0 (duplicates)
+    PDFs downloaded: 0
+    PDFs failed:     0
+    [FILTER] 222 papers match keyword filter
+    [TOTAL] 222 IISD ag/food publications
+    [SCRAPED] Found 222 papers from International Institute for Sustainable Development
+    HARVEST COMPLETE: International Institute for Sustainable Development
+    Papers added:    1
+    Papers skipped:  221 (duplicates)
+    PDFs downloaded: 0
+    PDFs failed:     0
+    [FILTER] 25 papers match keyword filter
+    [TOTAL] 25 Smart Prosperity ag/food papers
+    [SCRAPED] Found 25 papers from Smart Prosperity Institute
+
+  Phase 4: PDF Downloads  [✗ FAILED]
+  Duration: 7.7s
+  ERROR:
+    OperationalError: database is locked
+    Traceback (most recent call last):
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\scheduled_harvest.py", line 86, in run_phase
+        func(*args, **kwargs)
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\scheduled_harvest.py", line 253, in run_pdf_downloads
+        download_pdfs(limit=100, tier=1)
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\pdf_downloader.py", line 239, in download_pdfs
+        return downloader.download_papers(limit=limit, tier_filter=tier)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\pdf_downloader.py", line 204, in download_papers
+  Key Output:
+    [QUEUE] 100 papers with PDF URLs available for download
+
+  Phase 5: PyMuPDF Full Text Extraction  [✓ SUCCESS]
+  Duration: 0.5s
+  Key Output:
+    [2/2] Extracted: 2 | Failed: 0 | Avg: 88,995 chars | 6.0 papers/sec | ETA: 0s
+    TEXT EXTRACTION COMPLETE
+    Extracted: 2 papers (177,990 total characters)
+
+  Phase 6: ChromaDB Vector Indexing  [✗ FAILED]
+  Duration: 0.0s
+  ERROR:
+    TypeError: build_embeddings() got an unexpected keyword argument 'batch_size'
+    Traceback (most recent call last):
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\scheduled_harvest.py", line 86, in run_phase
+        func(*args, **kwargs)
+      File "C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\scheduled_harvest.py", line 276, in run_embeddings
+        build_embeddings(batch_size=500)
+    TypeError: build_embeddings() got an unexpected keyword argument 'batch_size'
+    
+
+==============================================================================
+  Report saved to: C:\Users\ben.lefort\OneDrive - Ontario Federation of Agriculture\Desktop\Ben Desktop Files\Economic Analyst Position\Economic papers\Ag Economic Research Database\reports\harvest_report_2026-08-31_1147.txt
+==============================================================================

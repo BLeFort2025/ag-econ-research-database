@@ -47,17 +47,27 @@ def build_embeddings(limit=None, force_rebuild=False, model=None, collection=Non
     # Connect to ChromaDB
     if collection is None:
         _, collection = get_chroma_collection()
-    existing_ids = set(collection.get()["ids"]) if not force_rebuild else set()
-    print(f"[CHROMA] {len(existing_ids)} papers already embedded")
 
     if force_rebuild:
-        # Wipe and recreate
         import chromadb
         client = chromadb.PersistentClient(path=CHROMA_DIR)
         client.delete_collection("paper_abstracts")
         _, collection = get_chroma_collection()
         existing_ids = set()
         print("[CHROMA] Collection rebuilt from scratch")
+    else:
+        # Paged ID retrieval to handle 89k+ vectors without SQLite variable limits
+        existing_ids = set()
+        col_total = collection.count()
+        chunk_sz = 5000
+        offset = 0
+        while offset < col_total:
+            batch = collection.get(limit=chunk_sz, offset=offset)
+            if not batch or not batch["ids"]:
+                break
+            existing_ids.update(batch["ids"])
+            offset += len(batch["ids"])
+        print(f"[CHROMA] {len(existing_ids)} papers already embedded")
 
     # Fetch papers with abstracts or full text
     conn = get_connection()
@@ -104,16 +114,17 @@ def build_embeddings(limit=None, force_rebuild=False, model=None, collection=Non
         metadatas = []
 
         for paper in batch:
+            title_str = paper["title"] or ""
             if paper["full_text"]:
                 # Use title + first 2000 chars of full text for richer embeddings
                 body = paper["full_text"][:2000]
             else:
                 body = paper["abstract"] or ""
-            text = f"{paper['title']}. {body}"
+            text = f"{title_str}. {body}".strip()
             texts.append(text)
             ids.append(str(paper["id"]))
             metadatas.append({
-                "title": paper["title"][:500],
+                "title": title_str[:500],
                 "year": paper["year"] or 0,
                 "source": paper["source_name"] or "Unknown",
                 "tier": paper["priority_tier"] or 4,
@@ -155,8 +166,8 @@ def build_embeddings(limit=None, force_rebuild=False, model=None, collection=Non
 
 def search(query_text, n_results=20, tier_filter=None, year_min=None, year_max=None, model=None, collection=None):
     """
-    Semantic search over paper abstracts.
-    Returns list of results with scores.
+    Robust semantic search over paper abstracts.
+    Performs pure vector similarity search and applies tier/year filters smoothly.
     """
     if model is None:
         from sentence_transformers import SentenceTransformer
@@ -164,53 +175,63 @@ def search(query_text, n_results=20, tier_filter=None, year_min=None, year_max=N
     if collection is None:
         _, collection = get_chroma_collection()
 
-    # Build where filter
-    where_clauses = []
-    if tier_filter is not None:
-        where_clauses.append({"tier": {"$eq": tier_filter}})
-    if year_min is not None:
-        where_clauses.append({"year": {"$gte": year_min}})
-    if year_max is not None:
-        where_clauses.append({"year": {"$lte": year_max}})
-
-    where_filter = None
-    if len(where_clauses) == 1:
-        where_filter = where_clauses[0]
-    elif len(where_clauses) > 1:
-        where_filter = {"$and": where_clauses}
-
     # Embed query
     query_embedding = model.encode([query_text], convert_to_numpy=True).tolist()
 
-    # Search
-    results = collection.query(
-        query_embeddings=query_embedding,
-        n_results=n_results,
-        where=where_filter,
-        include=["documents", "metadatas", "distances"],
-    )
+    # Retrieve candidate vectors (buffer candidates if filters applied)
+    has_filter = (tier_filter is not None) or (year_min is not None) or (year_max is not None)
+    fetch_k = min(max(n_results * 5, 100), collection.count()) if has_filter else n_results
 
-    # Format results
+    try:
+        results = collection.query(
+            query_embeddings=query_embedding,
+            n_results=fetch_k,
+            include=["documents", "metadatas", "distances"],
+        )
+    except Exception:
+        _, fresh_collection = get_chroma_collection()
+        results = fresh_collection.query(
+            query_embeddings=query_embedding,
+            n_results=fetch_k,
+            include=["documents", "metadatas", "distances"],
+        )
+
+    # Format & filter results
     formatted = []
     if results and results["ids"] and results["ids"][0]:
         for i, doc_id in enumerate(results["ids"][0]):
-            meta = results["metadatas"][0][i]
+            meta = results["metadatas"][0][i] or {}
             distance = results["distances"][0][i]
-            # Convert cosine distance to similarity score (0-1)
-            similarity = 1 - distance
+            similarity = 1.0 - distance
+
+            p_tier = meta.get("tier", 4)
+            p_year = meta.get("year", 0)
+
+            # Apply tier filter
+            if tier_filter is not None and p_tier != tier_filter:
+                continue
+
+            # Apply year filter
+            if year_min is not None and p_year < year_min:
+                continue
+            if year_max is not None and p_year > year_max:
+                continue
 
             formatted.append({
                 "paper_id": int(doc_id),
                 "title": meta.get("title", ""),
-                "year": meta.get("year", 0),
+                "year": p_year,
                 "source": meta.get("source", ""),
-                "tier": meta.get("tier", 4),
+                "tier": p_tier,
                 "citations": meta.get("citations", 0),
                 "doi": meta.get("doi", ""),
                 "is_open_access": meta.get("is_open_access", 0),
                 "similarity": round(similarity, 4),
                 "abstract_snippet": (results["documents"][0][i] or "")[:300],
             })
+
+            if len(formatted) >= n_results:
+                break
 
     return formatted
 

@@ -1,11 +1,8 @@
-"""
-PDF Download Manager for the Agricultural Economics Research Database.
-Downloads open-access PDFs with rate limiting, storage budget enforcement,
-and organized directory structure.
-"""
 import os
+import re
 import time
 import requests
+from urllib.parse import urljoin
 from config import (
     PDF_DIR,
     MAX_PDF_STORAGE_GB,
@@ -16,6 +13,7 @@ from config import (
 from db import (
     get_connection,
     update_paper_pdf,
+    update_paper_full_text,
     get_pdf_storage_used_gb,
 )
 
@@ -26,7 +24,7 @@ class PDFDownloader:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "AgEconResearchPipeline/1.0 (academic-research)",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         })
 
     def _get_save_path(self, paper):
@@ -39,58 +37,77 @@ class PDFDownloader:
         directory = os.path.join(PDF_DIR, tier_dir, str(year))
         os.makedirs(directory, exist_ok=True)
 
-        # Create a safe filename from paper ID and truncated title
         paper_id = paper["id"]
-        title = (paper["title"] or "untitled")[:80]
-        # Sanitize filename
+        title = (paper["title"] or "untitled")[:35]
         safe_title = "".join(c if c.isalnum() or c in " -_" else "_" for c in title)
         safe_title = safe_title.strip()
 
         filename = f"{paper_id}_{safe_title}.pdf"
         return os.path.join(directory, filename)
 
+    def _resolve_and_stream_pdf(self, url, depth=0):
+        """Fetch URL, handle HTML landing page redirects to direct PDF links."""
+        if depth > 2:
+            return None
+
+        # Upgrade http to https
+        if url.startswith("http://"):
+            url = "https://" + url[7:]
+
+        resp = self.session.get(
+            url,
+            timeout=PDF_DOWNLOAD_TIMEOUT,
+            stream=True,
+            allow_redirects=True,
+        )
+        resp.raise_for_status()
+
+        content_type = resp.headers.get("Content-Type", "").lower()
+        if "pdf" in content_type or "octet-stream" in content_type or url.endswith(".pdf"):
+            return resp
+
+        # If HTML, search for embedded PDF links (e.g. AgEcon Search, CAPI, university repositories)
+        if "html" in content_type or "text" in content_type:
+            html_text = resp.content.decode("utf-8", errors="ignore")
+            pdf_links = re.findall(r'href=[\"\']([^\"\']+\.pdf[^\"\']*)[\"\']', html_text, re.I)
+            if pdf_links:
+                direct_url = urljoin(url, pdf_links[0])
+                return self._resolve_and_stream_pdf(direct_url, depth=depth + 1)
+
+        return None
+
     def _download_file(self, url, save_path):
         """Download a single PDF file. Returns (success, file_size_bytes)."""
+        os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
         for attempt in range(1, PDF_MAX_RETRIES + 1):
             try:
-                resp = self.session.get(
-                    url,
-                    timeout=PDF_DOWNLOAD_TIMEOUT,
-                    stream=True,
-                    allow_redirects=True,
-                )
-                resp.raise_for_status()
+                resp = self._resolve_and_stream_pdf(url)
+                if not resp:
+                    return False, 0
 
-                # Check content type — make sure it's actually a PDF
-                content_type = resp.headers.get("Content-Type", "").lower()
-                if "pdf" not in content_type and "octet-stream" not in content_type:
-                    # If it's HTML, it's probably a landing page, not a PDF
-                    if "html" in content_type:
-                        return False, 0
-
-                # Download in chunks to track size
                 total_bytes = 0
                 with open(save_path, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                        total_bytes += len(chunk)
+                        if chunk:
+                            f.write(chunk)
+                            total_bytes += len(chunk)
 
-                # Verify it's actually a PDF (check magic bytes)
-                with open(save_path, "rb") as f:
-                    header = f.read(5)
-                    if header != b"%PDF-":
-                        os.remove(save_path)
-                        return False, 0
+                # Verify magic bytes
+                if os.path.exists(save_path) and os.path.getsize(save_path) > 500:
+                    with open(save_path, "rb") as f:
+                        header = f.read(5)
+                        if header == b"%PDF-":
+                            return True, total_bytes
 
-                return True, total_bytes
+                if os.path.exists(save_path):
+                    os.remove(save_path)
+                return False, 0
 
             except requests.RequestException as e:
                 if attempt < PDF_MAX_RETRIES:
-                    wait = 2 ** attempt  # Exponential backoff
-                    print(f"    [RETRY {attempt}/{PDF_MAX_RETRIES}] {e} — waiting {wait}s")
+                    wait = 2 ** attempt
                     time.sleep(wait)
                 else:
-                    # Clean up partial download
                     if os.path.exists(save_path):
                         os.remove(save_path)
                     return False, 0
@@ -142,8 +159,12 @@ class PDFDownloader:
             query += " AND priority_tier = ?"
             params.append(tier_filter)
 
-        # Download highest priority (lowest tier number) first, then most cited
-        query += " ORDER BY priority_tier ASC, citation_count DESC"
+        # Prioritize direct PDF downloads (AgEcon Search, CAPI, IISD) over web landing pages
+        query += """ ORDER BY 
+            (CASE WHEN pdf_url LIKE '%.pdf%' THEN 0 ELSE 1 END) ASC,
+            (CASE WHEN pdf_url LIKE '%wiley%' OR pdf_url LIKE '%ncbi%' THEN 1 ELSE 0 END) ASC,
+            priority_tier ASC, 
+            citation_count DESC"""
 
         if limit:
             query += f" LIMIT {int(limit)}"
@@ -174,19 +195,29 @@ class PDFDownloader:
                 downloaded += 1
                 continue
 
-            print(f"  [{i}/{total}] Tier {paper['priority_tier']} | {paper['year']} | {paper['title'][:60]}...")
+            title_disp = (paper["title"] or "Untitled")[:60].encode("ascii", "replace").decode("ascii")
+            print(f"  [{i}/{total}] Tier {paper['priority_tier']} | {paper['year']} | {title_disp}...")
 
             success, file_size = self._download_file(url, save_path)
 
             if success:
                 update_paper_pdf(conn, paper["id"], save_path, file_size)
+                # Auto-extract full text
+                try:
+                    from pdf_text_extractor import extract_text_from_pdf
+                    txt = extract_text_from_pdf(save_path)
+                    if txt:
+                        update_paper_full_text(conn, paper["id"], txt, status=1)
+                except Exception:
+                    pass
+
                 conn.commit()
                 downloaded += 1
                 size_mb = file_size / (1024 * 1024)
-                print(f"    ✓ Downloaded ({size_mb:.1f} MB)")
+                print(f"    [OK] Downloaded & Extracted Full Text ({size_mb:.1f} MB)")
             else:
                 failed += 1
-                print(f"    ✗ Failed")
+                print(f"    [FAIL] Could not retrieve PDF")
 
             # Rate limit
             time.sleep(PDF_DOWNLOAD_DELAY)

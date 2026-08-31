@@ -35,5 +35,10 @@ env/
 Thumbs.db
 desktop.ini
 
-# Sentence-transformers model cache
-.cache/
+# Logs and temp files
+*.log
+scratch/
+extracted_texts/
+paper_details.json
+results.json
+temp_*.py

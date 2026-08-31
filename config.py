@@ -112,8 +112,8 @@ AGECONSEARCH_OAI_URL = "http://ageconsearch.umn.edu/oai2d"
 AGECONSEARCH_METADATA_PREFIX = "marcxml"
 
 # ── Download Settings ───────────────────────────────────────────────────────
-PDF_DOWNLOAD_DELAY = 1.0    # Seconds between downloads (be respectful)
-PDF_DOWNLOAD_TIMEOUT = 30   # Seconds before timeout per file
-PDF_MAX_RETRIES = 3         # Max retry attempts per file
-REQUEST_TIMEOUT = 30        # Seconds for API requests
-GREY_LIT_SCRAPE_DELAY = 2.0 # Seconds between grey lit page requests
+PDF_DOWNLOAD_DELAY = 0.5    # Seconds between downloads (be respectful)
+PDF_DOWNLOAD_TIMEOUT = 10   # Fast 10s timeout per file so uncooperative domains skip quickly
+PDF_MAX_RETRIES = 1         # 1 retry attempt for fast pipeline execution
+REQUEST_TIMEOUT = 20        # Seconds for API requests
+GREY_LIT_SCRAPE_DELAY = 1.0 # Seconds between grey lit page requests
